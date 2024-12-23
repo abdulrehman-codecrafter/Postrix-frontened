@@ -1,6 +1,6 @@
 import { View, Text, Image, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import React, { useContext, useState } from 'react';
-import { TextInput } from 'react-native-paper';
+import { Button, TextInput } from 'react-native-paper';
 import axios from 'axios';
 import { AuthContext } from '../../contexts/authContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -9,12 +9,15 @@ const initialState = { email: "", password: "" }
 export default function LoginScreen({ navigation }) {
 
   const [state, setState] = useState(initialState)
-  const {dispatch}=useContext(AuthContext)
+  const [isLoading, setIsLoading] = useState(false)
+
+  const { dispatch } = useContext(AuthContext)
   const handleInputChange = (field, value) => {
     setState((preState) => ({ ...preState, [field]: value }))
   }
-  const handleLogin = async () => { 
-    try{
+  const handleLogin = async () => {
+    try {
+      setIsLoading(true)
       const { email, password } = state
       if (email === "" || password === "") {
         return alert("Please fill in all fields")
@@ -26,7 +29,6 @@ export default function LoginScreen({ navigation }) {
       if (result.data.data.error) {
         return alert(result.data.error)
       }
-      console.log(result)
       const token = result.data.data.token
 
       if (!token) {
@@ -37,10 +39,13 @@ export default function LoginScreen({ navigation }) {
       axios.defaults.headers.common['Authorization'] = token
 
       await AsyncStorage.setItem('token', token)
-      dispatch({type:'SET_USER',payload:result.data.data.user})
+      dispatch({ type: 'SET_USER', payload: result.data.data.user })
 
-    } catch(err){
+    } catch (err) {
       console.error(err)
+    }
+    finally {
+      setIsLoading(false)
     }
   }
 
@@ -78,9 +83,11 @@ export default function LoginScreen({ navigation }) {
               right={<TextInput.Icon icon="eye" />}
             />
 
-            <TouchableOpacity style={styles.button} onPress={handleLogin}>
-              <Text style={{ color: 'white', fontSize: 20, fontWeight: '600', letterSpacing: 0.7 }}>Login</Text>
-            </TouchableOpacity>
+            <View style={styles.button}>
+              <Button mode="contained"  loading={isLoading}  onPress={handleLogin}  style={{ width: 320, backgroundColor: '#3672E9' }}>
+                <Text style={{ color: 'white', fontSize: 18, fontWeight: '450', letterSpacing: 0.9 }}>Login</Text>
+              </Button>
+            </View>
           </View>
 
           <View style={{ flex: 1, alignItems: 'center', backgroundColor: '#fff' }}>
@@ -89,6 +96,7 @@ export default function LoginScreen({ navigation }) {
               <Text style={{ color: '#3672E9', fontSize: 16, fontWeight: '600' }}>Register</Text>
             </TouchableOpacity>
           </View>
+
         </ScrollView>
       </TouchableWithoutFeedback>
     </SafeAreaView>
@@ -98,7 +106,7 @@ export default function LoginScreen({ navigation }) {
 const styles = StyleSheet.create({
   button: {
     marginTop: 24,
-    paddingVertical: 10,
+    paddingVertical: 5,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#3672E9',
@@ -106,6 +114,5 @@ const styles = StyleSheet.create({
     borderColor: '#3672E9',
     borderStyle: 'solid',
     borderRadius: 10,
-    width: 320,
   },
 });
