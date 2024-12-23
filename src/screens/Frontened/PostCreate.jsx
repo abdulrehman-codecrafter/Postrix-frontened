@@ -1,214 +1,215 @@
-// import {View, Text, StyleSheet} from 'react-native';
-// import React, {useContext} from 'react';
-// import {AuthContext} from '../../contexts/authContext';
-// import {Avatar, Button} from 'react-native-paper';
-
-// export default function PostCreate() {
-//   const {user} = useContext(AuthContext);
-//   return (
-//     <View style={styles.container}>
-//       <View style={styles.header}>
-//         <View style={{flexDirection: 'row', alignItems: 'center'}}>
-//           <Avatar.Image size={50} source={{uri: user.profilePic}} />
-//           <View style={{marginStart: 11}}>
-//             <Text style={styles.userName}>{`Abdul-Rahman ${user.name}`}</Text>
-//             <Text style={{color: 'grey', fontSize: 13}}>The coder</Text>
-//           </View>
-//         </View>
-//         <Button
-//           icon="post"
-//           mode="contained"
-//           style={{justifySelf: 'flex-end'}}
-//           onPress={() => console.log('Post')}>
-//           Post
-//         </Button>
-//       </View>
-
-//     </View>
-//   );
-// }
-
-// const styles = StyleSheet.create({
-//   container: {
-//     margin: 15,
-//   },
-//   header: {
-//     // marginVertical: 10,
-//     //  flex:1,
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     justifyContent: 'space-between',
-//   },
-//   userName: {
-//     marginTop: 5,
-//     color: 'black',
-//     fontSize: 14,
-//     fontWeight: '600',
-//   },
-// });
-
-import React, {useContext, useState} from 'react';
 import {
   View,
   Text,
-  StyleSheet,
-  TextInput,
   Image,
-  TouchableOpacity,
   ScrollView,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import React, {useContext, useState} from 'react';
+import {Avatar, Button, IconButton} from 'react-native-paper';
+import DocumentPicker from 'react-native-document-picker';
+import axios from 'axios';
 import {AuthContext} from '../../contexts/authContext';
-import {Avatar} from 'react-native-paper';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-// import {launchImageLibrary} from 'react-native-image-picker';
 
 export default function PostCreate() {
-  const {user} = useContext(AuthContext);
-  const [text, setText] = useState('');
   const [image, setImage] = useState(null);
+  const [postText, setPostText] = useState('');
+  const {user} = useContext(AuthContext);
 
   const pickImage = async () => {
-    launchImageLibrary(
-      {
-        mediaType: 'photo',
-        maxWidth: 600,
-        maxHeight: 600,
-        quality: 1,
-      },
-      response => {
-        if (response.didCancel) {
-          console.log('User cancelled image picker');
-        } else if (response.errorMessage) {
-          console.error('Image Picker Error: ', response.errorMessage);
-        } else if (response.assets && response.assets.length > 0) {
-          const selectedImage = response.assets[0];
-          setImage(selectedImage.uri);
-        }
-      },
-    );
+    try {
+      const res = await DocumentPicker.pick({
+        type: [DocumentPicker.types.images],
+      });
+
+      if (res && res[0]) {
+        const {uri, type, name, size} = res[0];
+        setImage({uri, type, name, size});
+      }
+    } catch (err) {
+      if (DocumentPicker.isCancel(err)) {
+        console.log('User canceled image picker');
+      } else {
+        console.error('Document Picker Error:', err);
+      }
+    }
+  };
+
+  const cancelImage = () => {
+    setImage(null); // Reset image selection
+  };
+
+  const uploadCloudinary = async () => {
+    if (!image) {
+      console.error('No image selected for upload');
+      return;
+    }
+
+    try {
+      const data = new FormData();
+      data.append('file', {
+        uri: image.uri,
+        type: image.type,
+        name: image.name,
+      });
+      data.append('upload_preset', 'socialApp');
+      data.append('cloud_name', 'deni18m0m');
+      data.append('folder', 'socialApp'); // Optional folder name in Cloudinary
+
+      const res = await axios.post(
+        'https://api.cloudinary.com/v1_1/deni18m0m/image/upload',
+        data,
+        {
+          headers: {'Content-Type': 'multipart/form-data'},
+        },
+      );
+
+      console.log('Upload successful:', res.data.secure_url);
+    } catch (err) {
+      console.error('Image upload error:', err.response?.data || err.message);
+    }
   };
 
   const handlePost = () => {
-    console.log('Post content:', text);
-    console.log('Image URI:', image);
-    // Add logic to save the post (e.g., upload to Firestore or backend server)
+    // Handle post submission and upload image to Cloudinary
+    uploadCloudinary();
+    console.log('Post submitted:', {postText, image});
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      {/* User Information */}
-      <View style={styles.header}>
-        <Avatar.Image size={60} source={{uri: user.profilePic}} />
-        <View style={{marginLeft: 10}}>
-          <Text style={styles.userName}>{user.name}</Text>
-          <Text style={styles.userDescription}>The coder</Text>
+    <KeyboardAvoidingView
+      style={{flex: 1}}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScrollView contentContainerStyle={{flexGrow: 1}}>
+        <View style={{flex: 3}}>
+          <View style={{padding: 20}}>
+            {/* Avatar Section */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                marginBottom: 20,
+              }}>
+              <Avatar.Image
+                source={{uri: user.profilePic}} // Replace with logged-in user's avatar URL
+                size={50}
+                style={{marginRight: 10}}
+              />
+              <View>
+                <Text style={{fontWeight: '700', fontSize: 16}}>
+                  {user.name}
+                </Text>
+                <Text style={{fontSize: 14, color: 'gray'}}>
+                  React Native Developer
+                </Text>
+              </View>
+            </View>
+
+            {/* Post Text Input */}
+            <TextInput
+              placeholder="What's on your mind?"
+              multiline
+              mode="outlined"
+              value={postText}
+              onChangeText={setPostText}
+              style={{
+                backgroundColor: '#DADADC',
+                height: 50,
+                borderColor: '#ddd',
+                borderWidth: 1,
+                borderRadius: 20,
+                paddingHorizontal: 25,
+                marginBottom: 20,
+                color: 'black',
+                fontSize: 16,
+              }}
+              placeholderTextColor="gray"
+              selectionColor="black"
+            />
+
+            {/* Image Preview Section */}
+            {image ? (
+              <>
+                <View style={{marginBottom: 20, alignItems: 'center'}}>
+                  <Image
+                    source={{uri: image.uri}}
+                    style={{
+                      width: '100%',
+                      height: 250,
+                      borderRadius: 12,
+                      marginBottom: 2,
+                      resizeMode: 'cover',
+                    }}
+                  />
+                  {/* Cancel Image Button */}
+                  <IconButton
+                    icon="close-circle"
+                    size={30}
+                    iconColor="#e93445"
+                    onPress={cancelImage}
+                    style={{position: 'absolute', top: 10, right: 10}}
+                  />
+                </View>
+                <Text style={{color:'grey',textAlign:'center'}}>{image.name}</Text>
+              </>
+            ) : (
+              <View
+                style={{
+                  marginBottom: 20,
+                  borderWidth: 2,
+                  backgroundColor: '#80808036',
+                  borderStyle: 'dashed',
+                  borderColor: 'grey',
+                  alignItems: 'center',
+                  width: '90%',
+                  alignSelf: 'center',
+                  justifyContent: 'center',
+                  height: 200,
+                  borderRadius: 12,
+                }}>
+                {/* No Image Selected Text */}
+                <Text
+                  style={{
+                    textAlign: 'center',
+                    fontSize: 16,
+                    color: 'gray',
+                    marginBottom: 20,
+                  }}>
+                  No image selected
+                </Text>
+                <Button
+                  mode="outlined"
+                  icon="image-outline"
+                  iconColor="grey"
+                  onPress={pickImage}>
+                  Pick Image
+                </Button>
+              </View>
+            )}
+          </View>
         </View>
-      </View>
 
-      {/* Input Area */}
-      <View style={{flex: 1}}>
-        <TextInput
-          style={styles.input}
-          placeholder="What's on your mind?"
-          placeholderTextColor="grey"
-          multiline
-          value={text}
-          onChangeText={setText}
-        />
-
-        {/* Image Preview */}
-        {image && <Image source={{uri: image}} style={styles.imagePreview} />}
-
-        {/* Upload Photo Button */}
-        <TouchableOpacity style={styles.uploadButton}>
-          <Ionicons name="image-outline" size={24} color="#1a73e8" />
-          <Text style={styles.uploadButtonText}>Upload Photo</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Post Button */}
-      <TouchableOpacity
-        style={[styles.postButton, !image && {opacity: 0.6}]}
-        onPress={handlePost}
-        disabled={!image}>
-        <Text style={styles.postButtonText}>Post</Text>
-      </TouchableOpacity>
-    </ScrollView>
+        <View style={{flex: 1, justifyContent: 'flex-end'}}>
+          {/* Submit Button */}
+          <Button
+            mode="contained"
+            icon="send"
+            onPress={handlePost}
+            style={{
+              margin: 20,
+              borderRadius: 20,
+              paddingVertical: 5,
+              backgroundColor: '#2e64e5',
+              
+              alignSelf: 'center',
+              width: '80%',
+            }}>
+            Post
+          </Button>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    padding: 15,
-    backgroundColor: '#f4f4f4',
-    //  justifyContent: 'space-between',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  userName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  userDescription: {
-    fontSize: 14,
-    color: 'grey',
-  },
-  input: {
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 10,
-    fontSize: 16,
-    color: '#333',
-    height: 300,
-    textAlignVertical: 'top',
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 4,
-  },
-  imagePreview: {
-    width: '100%',
-    height: 250,
-    borderRadius: 10,
-    marginTop: 20,
-    backgroundColor: '#ccc',
-  },
-  uploadButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 20,
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 30,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 4,
-  },
-  uploadButtonText: {
-    marginLeft: 10,
-    fontSize: 16,
-    color: '#1a73e8',
-    fontWeight: 'bold',
-  },
-  postButton: {
-    backgroundColor: '#1a73e8',
-    padding: 15,
-    borderRadius: 30,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  postButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-});
